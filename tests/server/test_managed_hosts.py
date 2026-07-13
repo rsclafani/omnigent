@@ -1472,7 +1472,7 @@ async def test_relaunch_rejects_unconfigured_provider(db_uri: str) -> None:
     """
     host_store = HostStore(db_uri)
     host = host_store.register_managed_host(
-        host_id="host_relaunch_mismatch",
+        host_id="8369cb15e751573a1ee641d5fa09c70a",
         name="managed-mismatch",
         owner=_OWNER,
         token="tok",
@@ -1671,7 +1671,7 @@ async def test_terminate_managed_host_terminates_and_deletes_row(db_uri: str) ->
     fake = FakeSandboxLauncher()
     host_store = HostStore(db_uri)
     host = host_store.register_managed_host(
-        host_id="host_term_1",
+        host_id="62a91eb065624754c6a6dfb5869dd7e8",
         name="managed-term1",
         owner=_OWNER,
         token="tok-term-1",
@@ -1683,7 +1683,7 @@ async def test_terminate_managed_host_terminates_and_deletes_row(db_uri: str) ->
     await terminate_managed_host(host, host_store, _injected_config(fake))
 
     assert fake.terminated == ["sb-term-1"]
-    assert host_store.get_host("host_term_1") is None
+    assert host_store.get_host("62a91eb065624754c6a6dfb5869dd7e8") is None
     assert host_store.resolve_launch_token("tok-term-1") is None
 
 
@@ -1704,7 +1704,7 @@ async def test_terminate_managed_host_deletes_row_even_when_terminate_fails(
     monkeypatch.setattr(fake, "terminate", _explode)
     host_store = HostStore(db_uri)
     host = host_store.register_managed_host(
-        host_id="host_term_2",
+        host_id="057e7fa3f1cdb40c0ec393a3d42affc7",
         name="managed-term2",
         owner=_OWNER,
         token="tok-term-2",
@@ -1715,7 +1715,7 @@ async def test_terminate_managed_host_deletes_row_even_when_terminate_fails(
 
     await terminate_managed_host(host, host_store, _injected_config(fake))
 
-    assert host_store.get_host("host_term_2") is None
+    assert host_store.get_host("057e7fa3f1cdb40c0ec393a3d42affc7") is None
     assert host_store.resolve_launch_token("tok-term-2") is None
 
 
@@ -1730,7 +1730,7 @@ async def test_terminate_managed_host_skips_mismatched_provider(db_uri: str) -> 
     fake = FakeSandboxLauncher()  # provider "modal"
     host_store = HostStore(db_uri)
     host = host_store.register_managed_host(
-        host_id="host_term_3",
+        host_id="487212fd2b157b6ab6a6d6d3ef06ce5b",
         name="managed-term3",
         owner=_OWNER,
         token="tok-term-3",
@@ -1743,12 +1743,12 @@ async def test_terminate_managed_host_skips_mismatched_provider(db_uri: str) -> 
     await terminate_managed_host(host, host_store, _injected_config(fake))
     # No cross-provider terminate was attempted.
     assert fake.terminated == []
-    assert host_store.get_host("host_term_3") is None
+    assert host_store.get_host("487212fd2b157b6ab6a6d6d3ef06ce5b") is None
     assert host_store.resolve_launch_token("tok-term-3") is None
 
     # config=None behaves the same: row deleted, nothing terminated.
     host2 = host_store.register_managed_host(
-        host_id="host_term_4",
+        host_id="b114bf90a8fd155ce6007c3bb262aa79",
         name="managed-term4",
         owner=_OWNER,
         token="tok-term-4",
@@ -1757,7 +1757,7 @@ async def test_terminate_managed_host_skips_mismatched_provider(db_uri: str) -> 
         token_expires_at=now_epoch() + 3600,
     )
     await terminate_managed_host(host2, host_store, None)
-    assert host_store.get_host("host_term_4") is None
+    assert host_store.get_host("b114bf90a8fd155ce6007c3bb262aa79") is None
 
 
 def test_parse_modal_secrets_thread_to_launcher(monkeypatch: pytest.MonkeyPatch) -> None:
