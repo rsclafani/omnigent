@@ -787,12 +787,14 @@ def _parse_os_env(
             "sandbox.type=none does not create a scratch tmpdir",
             code=ErrorCode.INVALID_INPUT,
         )
+    shell_raw = raw.get("shell")
     return OSEnvSpec(
         type=str(raw.get("type", "caller_process")),
         cwd=str(cwd_raw) if cwd_raw is not None else None,
         sandbox=sandbox,
         fork=fork,
         start_in_scratch=start_in_scratch,
+        shell=str(shell_raw) if shell_raw is not None else None,
     )
 
 

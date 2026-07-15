@@ -294,3 +294,55 @@ def test_read_impl_nul_byte_file_classified_binary(tmp_path: Path) -> None:
 
     assert result["encoding"] == "base64"
     assert result["total_bytes"] == 10
+
+
+def test_resolve_shell_path_override_and_autodetect(monkeypatch) -> None:
+    """os_env.shell override picks the named/absolute shell; None auto-detects.
+
+    The load-bearing case: forcing ``powershell``/``cmd`` on a Windows host
+    where WSL's ``bash.exe`` is on PATH, so shell commands run in native
+    Windows instead of silently escaping into WSL Ubuntu.
+    """
+    from omnigent.inner import os_env as os_env_mod
+    from omnigent.inner.os_env import _resolve_shell_path, _shell_argv
+
+    # cmd resolves via COMSPEC.
+    monkeypatch.setenv("COMSPEC", r"C:\Windows\system32\cmd.exe")
+    assert _resolve_shell_path("cmd") == r"C:\Windows\system32\cmd.exe"
+    # argv mapping is basename-driven; check it with a bare name so the
+    # assertion is OS-independent (``Path.name`` only splits Windows paths
+    # under ntpath, i.e. on the Windows host where this actually runs).
+    assert _shell_argv("cmd.exe", "dir")[1] == "/c"
+
+    # powershell falls back to a bare name when not on PATH, and maps to the
+    # ``-NoProfile -Command`` invocation regardless of resolution.
+    monkeypatch.setattr(os_env_mod.shutil, "which", lambda _n: None)
+    ps = _resolve_shell_path("powershell")
+    assert ps == "powershell.exe"
+    assert _shell_argv(ps, "Get-Location")[1:3] == ["-NoProfile", "-Command"]
+
+    # An absolute path is used verbatim.
+    assert _resolve_shell_path("/usr/bin/zsh") == "/usr/bin/zsh"
+
+    # A named override that is not on PATH is a loud config error.
+    import pytest
+
+    with pytest.raises(ValueError, match="was not found on PATH"):
+        _resolve_shell_path("definitely-not-a-real-shell")
+
+    # None keeps the historical auto-detect (bash/sh when present).
+    monkeypatch.setattr(
+        os_env_mod.shutil, "which", lambda n: "/bin/bash" if n == "bash" else None
+    )
+    assert _resolve_shell_path(None) == "/bin/bash"
+
+
+def test_parse_os_env_reads_shell_field() -> None:
+    """The bundle ``os_env.shell`` key flows into OSEnvSpec.shell."""
+    from omnigent.spec.parser import _parse_os_env
+
+    spec = _parse_os_env({"type": "caller_process", "shell": "powershell"})
+    assert spec is not None
+    assert spec.shell == "powershell"
+    # Absent key stays None (auto-detect).
+    assert _parse_os_env({"type": "caller_process"}).shell is None

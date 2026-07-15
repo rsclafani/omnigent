@@ -880,6 +880,46 @@ class CallerProcessOSEnvironment(OSEnvironment):
         self.close()
 
 
+def _resolve_shell_path(override: str | None) -> str:
+    """Resolve the shell ``sys_os_shell`` runs commands through.
+
+    ``override`` (from ``os_env.shell``) is either a shell NAME resolved on
+    PATH (``powershell`` / ``pwsh`` / ``cmd`` / ``bash`` / ``sh``) or an
+    absolute PATH to a shell binary. ``None`` keeps the historical
+    auto-detect: ``bash`` / ``sh`` on PATH, else ``cmd.exe`` on Windows and
+    ``/bin/sh`` elsewhere.
+
+    Forcing ``powershell`` / ``cmd`` is how a native-Windows host avoids
+    auto-selecting WSL's ``bash.exe`` — which is on PATH as
+    ``C:\\Windows\\System32\\bash.exe`` whenever WSL is installed and, being
+    ``bash``, wins the auto-detect and silently routes every command into
+    WSL Ubuntu instead of native Windows.
+
+    :param override: The ``os_env.shell`` value, or ``None`` for auto.
+    :returns: An absolute path (or bare name) the OS can exec; its basename
+        is what :func:`_shell_argv` maps to the right invocation flags.
+    :raises ValueError: A named override that is not on PATH.
+    """
+    if override:
+        if os.sep in override or "/" in override:
+            return override
+        name = override.lower()
+        if name in ("powershell", "pwsh"):
+            return shutil.which("pwsh") or shutil.which("powershell") or "powershell.exe"
+        if name == "cmd":
+            return os.environ.get("COMSPEC", "cmd.exe")
+        resolved = shutil.which(override)
+        if resolved is not None:
+            return resolved
+        raise ValueError(f"os_env.shell {override!r} was not found on PATH")
+    shell_path = shutil.which("bash") or shutil.which("sh")
+    if shell_path is None:
+        # No POSIX shell on PATH. On Windows fall back to cmd.exe; elsewhere
+        # keep the historical /bin/sh default.
+        shell_path = os.environ.get("COMSPEC", "cmd.exe") if IS_WINDOWS else "/bin/sh"
+    return shell_path
+
+
 def create_os_environment(spec: OSEnvSpec | None) -> OSEnvironment | None:
     """Instantiate the configured OS environment."""
     if spec is None:
@@ -900,11 +940,7 @@ def create_os_environment(spec: OSEnvSpec | None) -> OSEnvironment | None:
             "os_env.start_in_scratch requires an active sandbox; "
             f"resolved sandbox type {sandbox.backend_type!r} is inactive"
         )
-    shell_path = shutil.which("bash") or shutil.which("sh")
-    if shell_path is None:
-        # No POSIX shell on PATH. On Windows fall back to cmd.exe; elsewhere
-        # keep the historical /bin/sh default.
-        shell_path = os.environ.get("COMSPEC", "cmd.exe") if IS_WINDOWS else "/bin/sh"
+    shell_path = _resolve_shell_path(spec.shell)
     egress_rules = spec.sandbox.egress_rules if spec.sandbox else None
     egress_allow_private = (
         spec.sandbox.egress_allow_private_destinations if spec.sandbox else False

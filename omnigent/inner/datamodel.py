@@ -672,6 +672,17 @@ class OSEnvSpec:
         project files via absolute paths. Requires an active
         sandbox (rejected for ``type='none'``). Mutually exclusive
         with :attr:`fork`. Default ``False``.
+    :param shell: Override the shell the ``sys_os_shell`` tool runs
+        commands through. ``None`` (default) auto-detects
+        ``bash``/``sh`` on PATH, falling back to ``cmd.exe`` on
+        Windows and ``/bin/sh`` elsewhere. Accepts a shell name
+        (``"powershell"``, ``"pwsh"``, ``"cmd"``, ``"bash"``,
+        ``"sh"``) resolved on PATH, or an absolute path to a shell
+        binary. Use ``"powershell"`` / ``"cmd"`` to force NATIVE
+        Windows on a host where WSL's ``bash.exe`` is on PATH and
+        would otherwise be auto-selected — auto-detect prefers
+        ``bash``, so a WSL install silently routes every shell
+        command into WSL Ubuntu instead of native Windows.
     """
 
     type: str = "caller_process"
@@ -679,6 +690,7 @@ class OSEnvSpec:
     sandbox: OSEnvSandboxSpec | None = None
     fork: bool = False
     start_in_scratch: bool = False
+    shell: str | None = None
 
 
 @dataclass
