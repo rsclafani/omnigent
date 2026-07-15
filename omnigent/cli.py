@@ -1401,6 +1401,21 @@ def main() -> None:
     so unhandled exceptions are captured even when the user didn't
     enable ``--log`` or ``--debug-events``.
     """
+    # On Windows the default console codec (typically cp1252) cannot encode
+    # the non-ASCII characters Omnigent prints — status glyphs like the ✓ in
+    # the host's "Connected" line, banners, wordmarks — so a purely cosmetic
+    # ``print`` raises ``UnicodeEncodeError``. In the host daemon that
+    # exception propagated out of a POST-handshake success print and was
+    # caught by the tunnel loop as a disconnect, looping connect/disconnect
+    # forever (the host never stayed online). Reconfigure stdout/stderr to
+    # UTF-8 with a lossy error handler so console output can never raise.
+    if sys.platform == "win32":
+        for _stream in (sys.stdout, sys.stderr):
+            try:
+                _stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+            except (AttributeError, ValueError, OSError):
+                pass
+
     cwd = os.getcwd()
     if cwd not in sys.path:
         sys.path.insert(0, cwd)

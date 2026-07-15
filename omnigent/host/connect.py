@@ -749,6 +749,14 @@ class HostProcess:
 
         :returns: Count of orphan (non-runner) processes reaped this sweep.
         """
+        # Reparenting-to-subreaper is a Linux concept; other platforms have
+        # no orphan zombies to reap AND lack the primitives this uses
+        # (``os.WNOHANG`` is undefined on Windows, so ``_reap_orphans_waitpid``
+        # would raise ``AttributeError`` every sweep — caught by the loop, but
+        # noisy). Match ``_install_child_subreaper``'s ``sys.platform !=
+        # "linux"`` guard and no-op, as this function's own docstring promises.
+        if sys.platform != "linux":
+            return 0
         if self._owned_subprocess_ops > 0:
             # A host-owned subprocess (e.g. a git worktree command) is running
             # in a worker thread. Its child is a DIRECT child of this process
