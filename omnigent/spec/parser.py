@@ -2060,10 +2060,22 @@ def _discover_skills(
         return []
     skills: list[SkillSpec] = []
     for skill_dir in entries:
-        if not skill_dir.is_dir():
-            continue
-        skill_md = skill_dir / "SKILL.md"
-        if not skill_md.exists():
+        # ``is_dir`` / ``exists`` can RAISE (not just return False) on an
+        # untraversable entry: on Windows a symlinked skill dir pointing at an
+        # "untrusted mount point" (a reparse point the OS refuses to follow)
+        # raises OSError WinError 448. One bad entry among the user's
+        # ``~/.claude/skills`` must not abort skill discovery — and thus the
+        # whole session — so skip anything that can't be stat'd.
+        try:
+            if not skill_dir.is_dir():
+                continue
+            skill_md = skill_dir / "SKILL.md"
+            if not skill_md.exists():
+                continue
+        except OSError as exc:
+            _log.warning("Skipping untraversable skill entry %s: %s", skill_dir, exc)
+            if skipped is not None:
+                skipped.append(f"{skill_dir}: {exc}")
             continue
         try:
             skill = _parse_skill(skill_md)
